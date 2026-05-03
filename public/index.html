@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recipes Overview</title>
+</head>
+<body>
+  <header>
+    <h1>Recipes</h1>
+  </header>
+  <main>
+    <ul id="recipes">
+      <li>Loading recipes…</li>
+    </ul>
+  </main>
+  <script>
+    (async function () {
+      const list = document.getElementById('recipes');
+
+      try {
+        const response = await fetch('/.netlify/functions/recipes');
+        if (!response.ok) {
+          throw new Error('Failed to load recipes');
+        }
+
+        const recipes = await response.json();
+        list.innerHTML = '';
+
+        if (recipes.length === 0) {
+          const li = document.createElement('li');
+          li.textContent = 'No recipes found.';
+          list.appendChild(li);
+          return;
+        }
+
+        recipes.forEach((recipe) => {
+          const li = document.createElement('li');
+          const article = document.createElement('article');
+
+          const heading = document.createElement('h2');
+          heading.textContent = recipe.name;
+
+          const source = document.createElement('p');
+          source.textContent = 'Source: ' + recipe.source;
+
+          article.appendChild(heading);
+          article.appendChild(source);
+          li.appendChild(article);
+          list.appendChild(li);
+        });
+      } catch (error) {
+        list.innerHTML = '';
+        const li = document.createElement('li');
+        li.textContent = 'Error: ' + error.message;
+        list.appendChild(li);
+      }
+    })();
+  </script>
+</body>
+</html>
