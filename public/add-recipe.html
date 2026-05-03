@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Add Recipe</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+    h1 { margin-bottom: 0.25rem; }
+    a { color: #0066cc; }
+    label { display: block; margin-top: 1rem; font-weight: 600; }
+    input[type="text"], input[type="number"], select { padding: 0.5rem; font: inherit; box-sizing: border-box; }
+    fieldset { border: 1px solid #ccc; padding: 1rem; margin-top: 1rem; border-radius: 6px; }
+    legend { font-weight: 600; padding: 0 0.5rem; }
+    .ingredient-row { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.5rem; padding: 0.5rem; background: #f8f9fa; border-radius: 4px; flex-wrap: wrap; }
+    .ingredient-row > * { font-size: 0.95rem; }
+    .ingredient-mode { flex: 0 0 110px; }
+    .ingredient-input-wrap { flex: 2; min-width: 200px; }
+    .existing-ingredient { width: 100%; }
+    .new-ingredient-inputs { display: flex; gap: 0.5rem; width: 100%; }
+    .new-ingredient-inputs input { flex: 1; }
+    .grams { flex: 1; min-width: 80px; }
+    button { padding: 0.45rem 0.8rem; font: inherit; cursor: pointer; }
+    .row-actions { display: flex; gap: 0.25rem; flex: 0 0 auto; }
+    .row-actions button { padding: 0.35rem 0.5rem; }
+    .secondary { margin-top: 0.75rem; background: none; border: none; color: #0066cc; text-decoration: underline; padding: 0; cursor: pointer; }
+    .actions { margin-top: 1.5rem; }
+    .checkbox-group { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.5rem; }
+    .checkbox-group label { display: flex; align-items: center; gap: 0.25rem; font-weight: normal; margin: 0; cursor: pointer; }
+    #status { margin-top: 1rem; padding: 0.75rem; border-radius: 4px; display: none; }
+    #status.success { background: #e6f4ea; color: #137333; display: block; }
+    #status.error { background: #fce8e8; color: #c5221f; display: block; }
+  </style>
+</head>
+<body>
+  <h1>Add New Recipe</h1>
+  <p><a href="/">← Back to recipes</a></p>
+
+  <form id="recipe-form">
+    <label for="name">Recipe Name</label>
+    <input type="text" id="name" name="name" required style="width:100%;">
+
+    <label for="source">Source</label>
+    <input type="text" id="source" name="source" placeholder="e.g. Ordner, You Suck At Cooking, 175" style="width:100%;">
+
+    <fieldset>
+      <legend>Ingredients <small>(use ↑ ↓ to reorder)</small></legend>
+      <div id="ingredients-list"></div>
+      <button type="button" class="secondary" id="add-ingredient">+ Add ingredient</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>Categories</legend>
+      <div class="checkbox-group" id="existing-categories"></div>
+      <label for="new-categories" style="margin-top:0.75rem; font-weight:normal;">New categories (comma separated)</label>
+      <input type="text" id="new-categories" placeholder="e.g. soup, vegan" style="width:100%;">
+    </fieldset>
+
+    <div class="actions">
+      <button type="submit">Save Recipe</button>
+    </div>
+
+    <div id="status"></div>
+  </form>
+
+  <script>
+    let ingredientsData = [];
+    let categoriesData = [];
+
+    function getToken() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('token') || '';
+    }
+
+    async function init() {
+      try {
+        const token = getToken();
+        const res = await fetch(`/.netlify/functions/add-recipe?token=${encodeURIComponent(token)}`);
+        if (!res.ok) throw new Error('Failed to load form data');
+        const data = await res.json();
+        ingredientsData = data.ingredients || [];
+        categoriesData = data.categories || [];
+        renderCategories();
+        addIngredientRow();
+      } catch (err) {
+        showStatus('Error loading data: ' + err.message, true);
+      }
+    }
+
+    function renderCategories() {
+      const container = document.getElementById('existing-categories');
+      categoriesData.forEach(c => {
+        const label = document.createElement('label');
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = c.category;
+        cb.name = 'category';
+        label.appendChild(cb);
+        label.appendChild(document.createTextNode(c.category));
+        container.appendChild(label);
+      });
+    }
+
+    function createIngredientRow() {
+      const row = document.createElement('div');
+      row.className = 'ingredient-row';
+
+      const modeSelect = document.createElement('select');
+      modeSelect.className = 'ingredient-mode';
+      modeSelect.innerHTML = '<option value="existing">Existing</option><option value="new">New</option>';
+
+      const existingSelect = document.createElement('select');
+      existingSelect.className = 'existing-ingredient';
+      const emptyOpt = document.createElement('option');
+      emptyOpt.value = '';
+      emptyOpt.textContent = '-- select ingredient --';
+      existingSelect.appendChild(emptyOpt);
+      ingredientsData.forEach(ing => {
+        const opt = document.createElement('option');
+        opt.value = ing.id;
+        opt.textContent = ing.name;
+        existingSelect.appendChild(opt);
+      });
+
+      const newContainer = document.createElement('div');
+      newContainer.className = 'new-ingredient-inputs';
+      newContainer.style.display = 'none';
+
+      const newName = document.createElement('input');
+      newName.type = 'text';
+      newName.placeholder = 'Ingredient name';
+      newName.className = 'new-name';
+
+      const newCals = document.createElement('input');
+      newCals.type = 'number';
+      newCals.placeholder = 'kcal / 100g';
+      newCals.min = 0;
+      newCals.className = 'new-calories';
+
+      newContainer.appendChild(newName);
+      newContainer.appendChild(newCals);
+
+      const inputWrap = document.createElement('div');
+      inputWrap.className = 'ingredient-input-wrap';
+      inputWrap.appendChild(existingSelect);
+      inputWrap.appendChild(newContainer);
+
+      const grams = document.createElement('input');
+      grams.type = 'number';
+      grams.placeholder = 'grams';
+      grams.min = 1;
+      grams.required = true;
+      grams.className = 'grams';
+
+      const upBtn = document.createElement('button');
+      upBtn.type = 'button';
+      upBtn.textContent = '↑';
+      upBtn.title = 'Move up';
+      upBtn.onclick = () => moveRow(row, -1);
+
+      const downBtn = document.createElement('button');
+      downBtn.type = 'button';
+      downBtn.textContent = '↓';
+      downBtn.title = 'Move down';
+      downBtn.onclick = () => moveRow(row, 1);
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.textContent = 'Remove';
+      removeBtn.onclick = () => {
+        row.remove();
+        updateOrderButtons();
+      };
+
+      const actions = document.createElement('div');
+      actions.className = 'row-actions';
+      actions.appendChild(upBtn);
+      actions.appendChild(downBtn);
+      actions.appendChild(removeBtn);
+
+      modeSelect.addEventListener('change', () => {
+        if (modeSelect.value === 'existing') {
+          existingSelect.style.display = 'block';
+          newContainer.style.display = 'none';
+          existingSelect.required = true;
+          newName.required = false;
+          newCals.required = false;
+        } else {
+          existingSelect.style.display = 'none';
+          newContainer.style.display = 'flex';
+          existingSelect.required = false;
+          newName.required = true;
+          newCals.required = true;
+        }
+      });
+
+      existingSelect.required = true;
+
+      row.appendChild(modeSelect);
+      row.appendChild(inputWrap);
+      row.appendChild(grams);
+      row.appendChild(actions);
+
+      return row;
+    }
+
+    function addIngredientRow() {
+      const container = document.getElementById('ingredients-list');
+      container.appendChild(createIngredientRow());
+      updateOrderButtons();
+    }
+
+    function moveRow(row, direction) {
+      const container = document.getElementById('ingredients-list');
+      if (direction === -1 && row.previousElementSibling) {
+        container.insertBefore(row, row.previousElementSibling);
+      } else if (direction === 1 && row.nextElementSibling) {
+        container.insertBefore(row.nextElementSibling, row);
+      }
+      updateOrderButtons();
+    }
+
+    function updateOrderButtons() {
+      const rows = document.querySelectorAll('.ingredient-row');
+      rows.forEach((row, idx) => {
+        const btns = row.querySelectorAll('.row-actions button');
+        const upBtn = btns[0];
+        const downBtn = btns[1];
+        if (upBtn) upBtn.disabled = idx === 0;
+        if (downBtn) downBtn.disabled = idx === rows.length - 1;
+      });
+    }
+
+    function showStatus(msg, isError) {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = isError ? 'error' : 'success';
+    }
+
+    document.getElementById('add-ingredient').addEventListener('click', addIngredientRow);
+
+    document.getElementById('recipe-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      showStatus('', false);
+
+      const name = document.getElementById('name').value.trim();
+      const source = document.getElementById('source').value.trim();
+
+      const ingredientRows = document.querySelectorAll('.ingredient-row');
+      const ingredients = [];
+      for (const row of ingredientRows) {
+        const mode = row.querySelector('.ingredient-mode').value;
+        const grams = parseInt(row.querySelector('.grams').value, 10);
+        if (!grams || grams <= 0) continue;
+
+        if (mode === 'existing') {
+          const id = parseInt(row.querySelector('.existing-ingredient').value, 10);
+          if (!id) continue;
+          ingredients.push({ type: 'existing', ingredient_id: id, grams });
+        } else {
+          const n = row.querySelector('.new-name').value.trim();
+          const cals = parseInt(row.querySelector('.new-calories').value, 10);
+          if (!n || isNaN(cals)) continue;
+          ingredients.push({ type: 'new', name: n, calories_per_100g: cals, grams });
+        }
+      }
+
+      const checkedCats = Array.from(document.querySelectorAll('input[name="category"]:checked')).map(cb => cb.value);
+      const newCats = document.getElementById('new-categories').value.split(',').map(s => s.trim()).filter(Boolean);
+      const categories = [...checkedCats, ...newCats];
+
+      if (ingredients.length === 0) {
+        showStatus('Please add at least one valid ingredient.', true);
+        return;
+      }
+
+      try {
+        const token = getToken();
+        const res = await fetch(`/.netlify/functions/add-recipe?token=${encodeURIComponent(token)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, source, ingredients, categories })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Save failed');
+
+        showStatus(`Recipe saved (ID: ${data.recipe_id}).`, false);
+        document.getElementById('recipe-form').reset();
+        document.getElementById('ingredients-list').innerHTML = '';
+        document.querySelectorAll('input[name="category"]').forEach(cb => cb.checked = false);
+        addIngredientRow();
+      } catch (err) {
+        showStatus('Error: ' + err.message, true);
+      }
+    });
+
+    init();
+  </script>
+</body>
+</html>
