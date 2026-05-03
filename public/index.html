@@ -39,7 +39,7 @@
 
     async function loadRecipes() {
       try {
-        const response = await fetch('/.netlify/functions/recipes');
+        const response = await fetch('/.netlify/functions/index');
         const data = await response.json();
 
         if (!response.ok) {
