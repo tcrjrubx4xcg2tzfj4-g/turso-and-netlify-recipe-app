@@ -6,7 +6,21 @@
   <title>Recipes Overview</title>
   <style>
     body { font-family: system-ui, sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
-    h1 { margin-bottom: 1.5rem; }
+    .header { margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+    h1 { margin: 0; }
+    .add-recipe-btn {
+      background-color: #0066cc;
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      text-decoration: none;
+      font-size: 0.95rem;
+      transition: background-color 0.2s;
+    }
+    .add-recipe-btn:hover {
+      background-color: #004d99;
+      text-decoration: none;
+    }
     .recipe-list { list-style: none; padding: 0; }
     .recipe-card { padding: 1rem; margin: 0.75rem 0; background: #f8f9fa; border-radius: 6px; }
     .recipe-name { margin: 0 0 0.5rem 0; font-size: 1.25rem; }
@@ -21,7 +35,10 @@
   </style>
 </head>
 <body>
-  <h1>Recipes Overview</h1>
+  <div class="header">
+    <h1>Recipes Overview</h1>
+    <a href="/add-recipe.html" class="add-recipe-btn">Add New Recipe</a>
+  </div>
   <ul id="recipes-list" class="recipe-list">
     <li class="loading">Loading recipes…</li>
   </ul>
