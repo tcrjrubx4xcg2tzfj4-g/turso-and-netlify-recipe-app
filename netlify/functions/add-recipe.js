@@ -1,3 +1,23 @@
+function toTursoValue(value) {
+  if (typeof value === "string") {
+    return { type: "text", value };
+  }
+  if (typeof value === "number") {
+    if (Number.isInteger(value)) {
+      return { type: "integer", value };
+    } else {
+      return { type: "real", value };
+    }
+  }
+  if (value === null || value === undefined) {
+    return { type: "null" };
+  }
+  if (typeof value === "boolean") {
+    return { type: "boolean", value };
+  }
+  throw new Error(`Unsupported Turso value type: ${typeof value}`);
+}
+
 export const handler = async (event) => {
   const dbUrl = process.env.TURSO_DATABASE_URL;
   const authToken = process.env.TURSO_AUTH_TOKEN;
@@ -189,7 +209,7 @@ export const handler = async (event) => {
         type: "execute",
         stmt: {
           sql: "INSERT INTO recipes (name, source) VALUES (?, ?) RETURNING id",
-          args: [name.trim(), typeof source === "string" ? source.trim() : ""],
+          args: [toTursoValue(name.trim()), toTursoValue(typeof source === "string" ? source.trim() : "")],
         },
       });
 
@@ -200,7 +220,7 @@ export const handler = async (event) => {
             type: "execute",
             stmt: {
               sql: "INSERT INTO ingredients_reference (name, calories_per_100g) VALUES (?, ?) RETURNING id",
-              args: [ing.name.trim(), Math.round(ing.calories_per_100g)],
+              args: [toTursoValue(ing.name.trim()), toTursoValue(Math.round(ing.calories_per_100g))],
             },
           });
           newIngredientIndices.push({ resultIndex: pipeline1.length - 1, ingredientIndex: idx });
@@ -238,7 +258,7 @@ export const handler = async (event) => {
           type: "execute",
           stmt: {
             sql: "INSERT INTO recipe_ingredients (recipe_id, ingredient_id, ingredient_order, grams) VALUES (?, ?, ?, ?)",
-            args: [recipeId, resolvedIngredientIds[idx], idx + 1, Math.round(ing.grams)],
+            args: [toTursoValue(recipeId), toTursoValue(resolvedIngredientIds[idx]), toTursoValue(idx + 1), toTursoValue(Math.round(ing.grams))],
           },
         });
       });
@@ -251,7 +271,7 @@ export const handler = async (event) => {
               type: "execute",
               stmt: {
                 sql: "INSERT INTO recipe_categories (recipe_id, category) VALUES (?, ?)",
-                args: [recipeId, trimmed],
+                args: [toTursoValue(recipeId), toTursoValue(trimmed)],
               },
             });
           }
