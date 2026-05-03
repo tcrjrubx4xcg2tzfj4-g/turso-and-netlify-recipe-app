@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>View Recipe</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+    h1 { margin-bottom: 0.25rem; }
+    a { color: #0066cc; }
+    .detail-row { margin: 0.5rem 0; }
+    .detail-label { font-weight: 600; }
+    .section { margin-top: 2rem; }
+    .section h2 { margin-bottom: 0.5rem; border-bottom: 1px solid #eee; padding-bottom: 0.25rem; }
+    .ingredient-list, .category-list { list-style: none; padding: 0; }
+    .ingredient-list li { padding: 0.75rem; margin: 0.25rem 0; background: #f8f9fa; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
+    .ingredient-info { flex: 1; }
+    .ingredient-calories { font-weight: 600; color: #333; }
+    .category-list li { padding: 0.25rem 0; }
+    #status { margin-top: 1rem; padding: 0.75rem; border-radius: 4px; display: none; }
+    #status.error { background: #fce8e8; color: #c5221f; display: block; }
+    .no-data { color: #666; font-style: italic; }
+  </style>
+</head>
+<body>
+  <p><a href="/">← Back to recipes</a></p>
+  <h1 id="recipe-name">Loading...</h1>
+  <div id="recipe-source" class="detail-row"></div>
+  <div id="total-calories" class="detail-row"></div>
+
+  <div class="section">
+    <h2>Ingredients</h2>
+    <ul id="ingredients-list" class="ingredient-list"></ul>
+  </div>
+
+  <div class="section">
+    <h2>Categories</h2>
+    <ul id="categories-list" class="category-list"></ul>
+  </div>
+
+  <div id="status"></div>
+
+  <script>
+    function getRecipeId() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('id');
+    }
+
+    function showStatus(msg, isError) {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = isError ? 'error' : '';
+      if (!isError) el.style.display = 'none';
+    }
+
+    async function loadRecipe() {
+      const recipeId = getRecipeId();
+      if (!recipeId) {
+        showStatus('No recipe ID provided', true);
+        document.getElementById('recipe-name').textContent = 'Error';
+        return;
+      }
+
+      try {
+        const res = await fetch(`/.netlify/functions/view-recipe?id=${encodeURIComponent(recipeId)}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to load recipe');
+        }
+
+        // Update recipe name
+        document.getElementById('recipe-name').textContent = data.recipe.name;
+
+        // Update source
+        const sourceEl = document.getElementById('recipe-source');
+        if (data.recipe.source) {
+          sourceEl.innerHTML = `<span class="detail-label">Source:</span> ${data.recipe.source}`;
+        } else {
+          sourceEl.innerHTML = `<span class="detail-label">Source:</span> <span class="no-data">Not specified</span>`;
+        }
+
+        // Update total calories
+        const totalCalEl = document.getElementById('total-calories');
+        totalCalEl.innerHTML = `<span class="detail-label">Total Calories:</span> ${data.totalCalories} kcal`;
+
+        // Update ingredients list
+        const ingredientsList = document.getElementById('ingredients-list');
+        ingredientsList.innerHTML = '';
+        if (data.ingredients.length === 0) {
+          ingredientsList.innerHTML = '<li class="no-data">No ingredients found</li>';
+        } else {
+          data.ingredients.forEach((ing) => {
+            const li = document.createElement('li');
+            li.innerHTML = `
+              <div class="ingredient-info">
+                <div><strong>${ing.order}. ${ing.name}</strong></div>
+                <div>${ing.grams}g | ${ing.caloriesPer100g} kcal/100g</div>
+              </div>
+              <div class="ingredient-calories">${ing.totalCalories} kcal</div>
+            `;
+            ingredientsList.appendChild(li);
+          });
+        }
+
+        // Update categories list
+        const categoriesList = document.getElementById('categories-list');
+        categoriesList.innerHTML = '';
+        if (data.categories.length === 0) {
+          categoriesList.innerHTML = '<li class="no-data">No categories assigned</li>';
+        } else {
+          data.categories.forEach((cat) => {
+            const li = document.createElement('li');
+            li.textContent = cat;
+            categoriesList.appendChild(li);
+          });
+        }
+
+      } catch (err) {
+        showStatus('Error loading recipe: ' + err.message, true);
+        document.getElementById('recipe-name').textContent = 'Error';
+      }
+    }
+
+    loadRecipe();
+  </script>
+</body>
+</html>
