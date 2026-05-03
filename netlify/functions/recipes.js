@@ -48,7 +48,11 @@ export const handler = async () => {
     const rows = resultSet.rows.map((row) => {
       const obj = {};
       row.forEach((value, index) => {
-        obj[cols[index]] = value;
+        const extracted =
+          value && typeof value === "object" && "value" in value
+            ? value.value
+            : value;
+        obj[cols[index]] = extracted;
       });
       return obj;
     });
