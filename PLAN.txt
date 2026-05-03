@@ -1,0 +1,8 @@
+Plan:
+Use Turso for the data and Netlify for the backend (to safly store the data access) and the html/js frontend.
+
+Steps:
+1. Create databases on turso. Can I fill them without a frontend? Yes, i can with Turso. Done. Tables and recipes are there.
+1.5 Add a repo to bitbucket and sync that automatically with netlify.
+2. Create a simple backend to store the credentials in a environment variable.
+3. Create a simple frontend.
