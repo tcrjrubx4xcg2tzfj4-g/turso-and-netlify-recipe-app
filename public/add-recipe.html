@@ -12,13 +12,12 @@
     input[type="text"], input[type="number"], select { padding: 0.5rem; font: inherit; box-sizing: border-box; }
     fieldset { border: 1px solid #ccc; padding: 1rem; margin-top: 1rem; border-radius: 6px; }
     legend { font-weight: 600; padding: 0 0.5rem; }
-    .ingredient-row { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.5rem; padding: 0.5rem; background: #f8f9fa; border-radius: 4px; flex-wrap: wrap; }
-    .ingredient-row > * { font-size: 0.95rem; }
+    .ingredient-row { display: flex; gap: 0.5rem; align-items: flex-start; margin-top: 0.5rem; padding: 0.5rem; background: #f8f9fa; border-radius: 4px; flex-wrap: wrap; }
     .ingredient-mode { flex: 0 0 110px; }
     .ingredient-input-wrap { flex: 2; min-width: 200px; }
     .existing-ingredient { width: 100%; }
-    .new-ingredient-inputs { display: flex; gap: 0.5rem; width: 100%; }
-    .new-ingredient-inputs input { flex: 1; }
+    .new-ingredient-inputs { display: flex; gap: 0.5rem; width: 100%; flex-wrap: wrap; }
+    .new-ingredient-inputs input { min-width: 140px; }
     .grams { flex: 1; min-width: 80px; }
     button { padding: 0.45rem 0.8rem; font: inherit; cursor: pointer; }
     .row-actions { display: flex; gap: 0.25rem; flex: 0 0 auto; }
