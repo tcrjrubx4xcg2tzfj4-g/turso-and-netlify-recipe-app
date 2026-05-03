@@ -90,7 +90,7 @@ export const handler = async (event) => {
         type: "execute",
         stmt: {
           sql: "SELECT id, name, source FROM recipes WHERE id = ?",
-          args: [{ type: "integer", value: parsedId }],
+          args: [{ type: "integer", value: parsedId.toString() }],
         },
       },
       {
@@ -105,14 +105,14 @@ export const handler = async (event) => {
                 JOIN ingredients_reference ir ON ri.ingredient_id = ir.id
                 WHERE ri.recipe_id = ?
                 ORDER BY ri.ingredient_order`,
-          args: [{ type: "integer", value: parsedId }],
+          args: [{ type: "integer", value: parsedId.toString() }],
         },
       },
       {
         type: "execute",
         stmt: {
           sql: "SELECT category FROM recipe_categories WHERE recipe_id = ? ORDER BY category",
-          args: [{ type: "integer", value: parsedId }],
+          args: [{ type: "integer", value: parsedId.toString() }],
         },
       },
       { type: "close" },
