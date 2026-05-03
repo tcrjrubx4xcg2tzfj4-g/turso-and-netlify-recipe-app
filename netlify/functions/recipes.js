@@ -1,4 +1,4 @@
-export const handler = async () => {
+export const handler = async (event) => {
   const dbUrl = process.env.TURSO_DATABASE_URL;
   const authToken = process.env.TURSO_AUTH_TOKEN;
 
@@ -12,19 +12,14 @@ export const handler = async () => {
 
   const httpUrl = dbUrl.replace(/^libsql:\/\//, "https://");
 
-  try {
+  const runPipeline = async (requests) => {
     const response = await fetch(`${httpUrl}/v2/pipeline`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${authToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        requests: [
-          { type: "execute", stmt: { sql: "SELECT name, source FROM recipes" } },
-          { type: "close" },
-        ],
-      }),
+      body: JSON.stringify({ requests }),
     });
 
     if (!response.ok) {
@@ -33,19 +28,24 @@ export const handler = async () => {
     }
 
     const data = await response.json();
-
     if (!data.results || data.results.length === 0) {
       throw new Error("Empty response from Turso");
     }
 
-    const firstResult = data.results[0];
-    if (firstResult.type !== "ok") {
-      throw new Error("Query failed");
+    for (const r of data.results) {
+      if (r.type === "error") {
+        throw new Error(r.error?.message || "Turso query error");
+      }
     }
 
-    const resultSet = firstResult.response.result;
-    const cols = resultSet.cols.map((col) => col.name);
-    const rows = resultSet.rows.map((row) => {
+    return data.results;
+  };
+
+  const extractRows = (result) => {
+    if (!result || result.type !== "ok" || !result.response?.result) return [];
+    const rs = result.response.result;
+    const cols = rs.cols.map((c) => c.name);
+    return (rs.rows || []).map((row) => {
       const obj = {};
       row.forEach((value, index) => {
         const extracted =
@@ -56,11 +56,52 @@ export const handler = async () => {
       });
       return obj;
     });
+  };
+
+  if (event.httpMethod !== "GET") {
+    return {
+      statusCode: 405,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ error: "Method not allowed" }),
+    };
+  }
+
+  try {
+    const results = await runPipeline([
+      {
+        type: "execute",
+        stmt: {
+          sql: "SELECT id, name, source FROM recipes ORDER BY name",
+        },
+      },
+      {
+        type: "execute",
+        stmt: {
+          sql: "SELECT recipe_id, category FROM recipe_categories ORDER BY recipe_id, category",
+        },
+      },
+      { type: "close" },
+    ]);
+
+    const recipes = extractRows(results[0]);
+    const allCategories = extractRows(results[1]);
+
+    const recipesWithDetails = recipes.map((recipe) => {
+      const recipeCategories = allCategories
+        .filter((cat) => cat.recipe_id === recipe.id)
+        .map((cat) => cat.category);
+      return {
+        id: recipe.id,
+        name: recipe.name,
+        source: recipe.source,
+        categories: recipeCategories,
+      };
+    });
 
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(rows),
+      body: JSON.stringify(recipesWithDetails),
     };
   } catch (error) {
     console.error(error);

@@ -4,58 +4,97 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Recipes Overview</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+    h1 { margin-bottom: 1.5rem; }
+    .recipe-list { list-style: none; padding: 0; }
+    .recipe-card { padding: 1rem; margin: 0.75rem 0; background: #f8f9fa; border-radius: 6px; }
+    .recipe-name { margin: 0 0 0.5rem 0; font-size: 1.25rem; }
+    .recipe-name a { color: #0066cc; text-decoration: none; }
+    .recipe-name a:hover { text-decoration: underline; }
+    .recipe-detail { margin: 0.25rem 0; color: #333; font-size: 0.95rem; }
+    .recipe-detail span { font-weight: 600; }
+    .no-data { color: #666; font-style: italic; }
+    #status { margin-top: 1rem; padding: 0.75rem; border-radius: 4px; display: none; }
+    #status.error { background: #fce8e8; color: #c5221f; display: block; }
+    .loading { color: #666; font-style: italic; }
+  </style>
 </head>
 <body>
-  <header>
-    <h1>Recipes</h1>
-  </header>
-  <main>
-    <ul id="recipes">
-      <li>Loading recipes…</li>
-    </ul>
-  </main>
-  <script>
-    (async function () {
-      const list = document.getElementById('recipes');
+  <h1>Recipes Overview</h1>
+  <ul id="recipes-list" class="recipe-list">
+    <li class="loading">Loading recipes…</li>
+  </ul>
+  <div id="status"></div>
 
+  <script>
+    const recipesList = document.getElementById('recipes-list');
+    const statusEl = document.getElementById('status');
+
+    function showStatus(msg, isError) {
+      statusEl.textContent = msg;
+      statusEl.className = isError ? 'error' : '';
+      if (!isError) statusEl.style.display = 'none';
+    }
+
+    async function loadRecipes() {
       try {
         const response = await fetch('/.netlify/functions/recipes');
+        const data = await response.json();
+
         if (!response.ok) {
-          throw new Error('Failed to load recipes');
+          throw new Error(data.error || 'Failed to load recipes');
         }
 
-        const recipes = await response.json();
-        list.innerHTML = '';
+        recipesList.innerHTML = '';
 
-        if (recipes.length === 0) {
+        if (data.length === 0) {
           const li = document.createElement('li');
+          li.className = 'no-data';
           li.textContent = 'No recipes found.';
-          list.appendChild(li);
+          recipesList.appendChild(li);
           return;
         }
 
-        recipes.forEach((recipe) => {
+        data.forEach((recipe) => {
           const li = document.createElement('li');
-          const article = document.createElement('article');
+          li.className = 'recipe-card';
 
-          const heading = document.createElement('h2');
-          heading.textContent = recipe.name;
+          // Recipe name linked to detail page
+          const nameEl = document.createElement('h2');
+          nameEl.className = 'recipe-name';
+          const link = document.createElement('a');
+          link.href = `/view-recipe.html?id=${recipe.id}`;
+          link.textContent = recipe.name;
+          nameEl.appendChild(link);
 
-          const source = document.createElement('p');
-          source.textContent = 'Source: ' + recipe.source;
+          // Source detail
+          const sourceEl = document.createElement('p');
+          sourceEl.className = 'recipe-detail';
+          const sourceText = recipe.source ? recipe.source : 'Not specified';
+          sourceEl.innerHTML = `<span>Source:</span> ${sourceText}`;
 
-          article.appendChild(heading);
-          article.appendChild(source);
-          li.appendChild(article);
-          list.appendChild(li);
+          // Categories detail
+          const categoriesEl = document.createElement('p');
+          categoriesEl.className = 'recipe-detail';
+          if (recipe.categories.length > 0) {
+            categoriesEl.innerHTML = `<span>Categories:</span> ${recipe.categories.join(', ')}`;
+          } else {
+            categoriesEl.innerHTML = `<span>Categories:</span> <span class="no-data">None</span>`;
+          }
+
+          li.appendChild(nameEl);
+          li.appendChild(sourceEl);
+          li.appendChild(categoriesEl);
+          recipesList.appendChild(li);
         });
       } catch (error) {
-        list.innerHTML = '';
-        const li = document.createElement('li');
-        li.textContent = 'Error: ' + error.message;
-        list.appendChild(li);
+        showStatus('Error loading recipes: ' + error.message, true);
+        recipesList.innerHTML = '';
       }
-    })();
+    }
+
+    loadRecipes();
   </script>
 </body>
 </html>
