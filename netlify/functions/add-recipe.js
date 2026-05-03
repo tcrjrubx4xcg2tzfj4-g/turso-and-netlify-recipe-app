@@ -1,82 +1,35 @@
-function toTursoValue(value) {
-  if (typeof value === "string") {
-    return { type: "text", value };
-  }
-  if (typeof value === "number") {
-    if (Number.isInteger(value)) {
-      return { type: "integer", value };
-    } else {
-      return { type: "real", value };
-    }
-  }
-  if (value === null || value === undefined) {
-    return { type: "null" };
-  }
-  if (typeof value === "boolean") {
-    return { type: "boolean", value };
-  }
-  throw new Error(`Unsupported Turso value type: ${typeof value}`);
-}
+import { getTursoClient } from './utils/turso.js';
 
 export const handler = async (event) => {
-  const dbUrl = process.env.TURSO_DATABASE_URL;
-  const authToken = process.env.TURSO_AUTH_TOKEN;
-
-  if (!dbUrl || !authToken) {
+  // Handle CORS preflight
+  if (event.httpMethod === "OPTIONS") {
     return {
-      statusCode: 500,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ error: "Missing Turso credentials" }),
+      statusCode: 200,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+      },
+      body: "",
     };
   }
 
-  const httpUrl = dbUrl.replace(/^libsql:\/\//, "https://");
-
-  const runPipeline = async (requests) => {
-    const response = await fetch(`${httpUrl}/v2/pipeline`, {
-      method: "POST",
+  let runPipeline, extractRows, toTursoValue;
+  try {
+    const tursoClient = getTursoClient();
+    runPipeline = tursoClient.runPipeline;
+    extractRows = tursoClient.extractRows;
+    toTursoValue = tursoClient.toTursoValue;
+  } catch (error) {
+    return {
+      statusCode: 500,
       headers: {
-        Authorization: `Bearer ${authToken}`,
         "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
       },
-      body: JSON.stringify({ requests }),
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`Turso API error ${response.status}: ${text}`);
-    }
-
-    const data = await response.json();
-    if (!data.results || data.results.length === 0) {
-      throw new Error("Empty response from Turso");
-    }
-
-    for (const r of data.results) {
-      if (r.type === "error") {
-        throw new Error(r.error?.message || "Turso query error");
-      }
-    }
-
-    return data.results;
-  };
-
-  const extractRows = (result) => {
-    if (!result || result.type !== "ok" || !result.response?.result) return [];
-    const rs = result.response.result;
-    const cols = rs.cols.map((c) => c.name);
-    return (rs.rows || []).map((row) => {
-      const obj = {};
-      row.forEach((value, index) => {
-        const extracted =
-          value && typeof value === "object" && "value" in value
-            ? value.value
-            : value;
-        obj[cols[index]] = extracted;
-      });
-      return obj;
-    });
-  };
+      body: JSON.stringify({ error: error.message }),
+    };
+  }
 
   if (event.httpMethod === "GET") {
     try {
@@ -101,14 +54,20 @@ export const handler = async (event) => {
 
       return {
         statusCode: 200,
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
         body: JSON.stringify({ ingredients, categories }),
       };
     } catch (error) {
       console.error(error);
       return {
         statusCode: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
         body: JSON.stringify({ error: error.message }),
       };
     }
@@ -121,7 +80,10 @@ export const handler = async (event) => {
     if (!expectedToken) {
       return {
         statusCode: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
         body: JSON.stringify({ error: "Server configuration error: missing WRITE_ACCESS_USER_TOKEN" }),
       };
     }
@@ -129,7 +91,10 @@ export const handler = async (event) => {
     if (token !== expectedToken) {
       return {
         statusCode: 403,
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
         body: JSON.stringify({ error: "Forbidden: invalid or missing token" }),
       };
     }
@@ -141,7 +106,10 @@ export const handler = async (event) => {
       } catch {
         return {
           statusCode: 400,
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
           body: JSON.stringify({ error: "Invalid JSON body" }),
         };
       }
@@ -151,7 +119,10 @@ export const handler = async (event) => {
       if (!name || typeof name !== "string" || name.trim().length === 0) {
         return {
           statusCode: 400,
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
           body: JSON.stringify({ error: "Recipe name is required" }),
         };
       }
@@ -159,7 +130,10 @@ export const handler = async (event) => {
       if (!Array.isArray(ingredients) || ingredients.length === 0) {
         return {
           statusCode: 400,
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
           body: JSON.stringify({ error: "At least one ingredient is required" }),
         };
       }
@@ -168,7 +142,10 @@ export const handler = async (event) => {
         if (typeof ing.grams !== "number" || ing.grams <= 0) {
           return {
             statusCode: 400,
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+            },
             body: JSON.stringify({ error: "Each ingredient needs positive grams" }),
           };
         }
@@ -176,14 +153,20 @@ export const handler = async (event) => {
           if (!ing.name || typeof ing.name !== "string" || ing.name.trim().length === 0) {
             return {
               statusCode: 400,
-              headers: { "Content-Type": "application/json" },
+              headers: {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+              },
               body: JSON.stringify({ error: "New ingredient name is required" }),
             };
           }
           if (typeof ing.calories_per_100g !== "number" || ing.calories_per_100g < 0) {
             return {
               statusCode: 400,
-              headers: { "Content-Type": "application/json" },
+              headers: {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+              },
               body: JSON.stringify({ error: "New ingredient calories must be 0 or more" }),
             };
           }
@@ -191,14 +174,20 @@ export const handler = async (event) => {
           if (!ing.ingredient_id || typeof ing.ingredient_id !== "number") {
             return {
               statusCode: 400,
-              headers: { "Content-Type": "application/json" },
+              headers: {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+              },
               body: JSON.stringify({ error: "Existing ingredient must have a valid ID" }),
             };
           }
         } else {
           return {
             statusCode: 400,
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+            },
             body: JSON.stringify({ error: "Ingredient type must be 'existing' or 'new'" }),
           };
         }
@@ -283,14 +272,20 @@ export const handler = async (event) => {
 
       return {
         statusCode: 200,
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
         body: JSON.stringify({ success: true, recipe_id: recipeId }),
       };
     } catch (error) {
       console.error(error);
       return {
         statusCode: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
         body: JSON.stringify({ error: error.message }),
       };
     }
@@ -298,7 +293,10 @@ export const handler = async (event) => {
 
   return {
     statusCode: 405,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+    },
     body: JSON.stringify({ error: "Method not allowed" }),
   };
 };
