@@ -209,7 +209,7 @@ export const handler = async (event) => {
             type: "execute",
             stmt: {
               sql: "INSERT INTO ingredients_reference (name, calories_per_100g) VALUES (?, ?) RETURNING id",
-              args: [toTursoValue(ing.name.trim()), toTursoValue(Math.round(ing.calories_per_100g))],
+              args: [toTursoValue(ing.name.trim()), toTursoValue(String(Math.round(ing.calories_per_100g)))],
             },
           });
           newIngredientIndices.push({ resultIndex: pipeline1.length - 1, ingredientIndex: idx });
@@ -247,7 +247,12 @@ export const handler = async (event) => {
           type: "execute",
           stmt: {
             sql: "INSERT INTO recipe_ingredients (recipe_id, ingredient_id, ingredient_order, grams) VALUES (?, ?, ?, ?)",
-            args: [toTursoValue(recipeId), toTursoValue(resolvedIngredientIds[idx]), toTursoValue(idx + 1), toTursoValue(Math.round(ing.grams))],
+            args: [
+              toTursoValue(String(recipeId)),
+              toTursoValue(String(resolvedIngredientIds[idx])),
+              toTursoValue(String(idx + 1)),
+              toTursoValue(String(Math.round(ing.grams)))
+            ],
           },
         });
       });
@@ -260,7 +265,7 @@ export const handler = async (event) => {
               type: "execute",
               stmt: {
                 sql: "INSERT INTO recipe_categories (recipe_id, category) VALUES (?, ?)",
-                args: [toTursoValue(recipeId), toTursoValue(trimmed)],
+                args: [toTursoValue(String(recipeId)), toTursoValue(trimmed)],
               },
             });
           }
