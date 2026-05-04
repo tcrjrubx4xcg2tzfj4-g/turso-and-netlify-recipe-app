@@ -72,7 +72,7 @@ export const handler = async (event) => {
         type: "execute",
         stmt: {
           sql: "SELECT id, name, source FROM recipes WHERE id = ?",
-          args: [toTursoValue(parsedId)],
+          args: [toTursoValue(String(parsedId))],
         },
       },
       {
@@ -87,14 +87,14 @@ export const handler = async (event) => {
                 JOIN ingredients_reference ir ON ri.ingredient_id = ir.id
                 WHERE ri.recipe_id = ?
                 ORDER BY ri.ingredient_order`,
-          args: [toTursoValue(parsedId)],
+          args: [toTursoValue(String(parsedId))],
         },
       },
       {
         type: "execute",
         stmt: {
           sql: "SELECT category FROM recipe_categories WHERE recipe_id = ? ORDER BY category",
-          args: [toTursoValue(parsedId)],
+          args: [toTursoValue(String(parsedId))],
         },
       },
       { type: "close" },
